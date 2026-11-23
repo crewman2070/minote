@@ -1,0 +1,131 @@
+name: Build & Publish Release APK
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: 'Release version tag (e.g. v1.0.0). Leave blank to auto-number.'
+        required: false
+        type: string
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release-apk:
+    name: Build Final Release APK
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Accept Android SDK licenses
+        run: |
+          if [ -n "$ANDROID_HOME" ] && [ -x "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" ]; then
+            yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null || true
+          fi
+
+      - name: Prepare release signing keystore
+        id: signing
+        env:
+          KEYSTORE_B64: ${{ secrets.RELEASE_KEYSTORE_BASE64 }}
+          SECRET_STORE_PASS: ${{ secrets.STORE_PASSWORD }}
+          SECRET_KEY_PASS: ${{ secrets.KEY_PASSWORD }}
+        run: |
+          KEYSTORE_FILE="${{ github.workspace }}/my-upload-key.jks"
+          echo "KEYSTORE_PATH=$KEYSTORE_FILE" >> "$GITHUB_ENV"
+
+          if [ -n "$KEYSTORE_B64" ] && [ -n "$SECRET_STORE_PASS" ] && [ -n "$SECRET_KEY_PASS" ]; then
+            echo "$KEYSTORE_B64" | base64 -d > "$KEYSTORE_FILE"
+            echo "STORE_PASSWORD=$SECRET_STORE_PASS" >> "$GITHUB_ENV"
+            echo "KEY_PASSWORD=$SECRET_KEY_PASS" >> "$GITHUB_ENV"
+            echo "mode=custom" >> "$GITHUB_OUTPUT"
+          else
+            GENERATED_PASS="FolioScriptRelease2026"
+            echo "::add-mask::$GENERATED_PASS"
+            keytool -genkeypair -v \
+              -keystore "$KEYSTORE_FILE" \
+              -storepass "$GENERATED_PASS" \
+              -alias upload \
+              -keypass "$GENERATED_PASS" \
+              -keyalg RSA \
+              -keysize 2048 \
+              -validity 10000 \
+              -dname "CN=FolioScript,O=FolioScript,C=US"
+            echo "STORE_PASSWORD=$GENERATED_PASS" >> "$GITHUB_ENV"
+            echo "KEY_PASSWORD=$GENERATED_PASS" >> "$GITHUB_ENV"
+            echo "mode=generated" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Set up Gradle 9.3.1
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '9.3.1'
+
+      - name: Build final Release APK
+        env:
+          GRADLE_OPTS: "-Djava.awt.headless=true"
+        run: gradle :app:assembleRelease --stacktrace
+
+      - name: Package final APK
+        run: |
+          mkdir -p dist
+          APK_SOURCE=$(find app/build/outputs/apk/release -name "*.apk" | head -n 1)
+          if [ -z "$APK_SOURCE" ]; then
+            echo "Release APK not found!"
+            exit 1
+          fi
+          cp "$APK_SOURCE" dist/FolioScript-release.apk
+          ls -lh dist/FolioScript-release.apk
+
+      - name: Clean up keystore file
+        if: always()
+        run: rm -f "${{ github.workspace }}/my-upload-key.jks"
+
+      - name: Upload Release APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: FolioScript-release-apk
+          path: dist/FolioScript-release.apk
+          if-no-files-found: error
+
+      - name: Determine release tag
+        id: tag
+        run: |
+          if [ "${{ github.event_name }}" = "push" ]; then
+            TAG="${{ github.ref_name }}"
+          elif [ -n "${{ inputs.release_tag }}" ]; then
+            TAG="${{ inputs.release_tag }}"
+          else
+            TAG="v1.0.${{ github.run_number }}"
+          fi
+          echo "name=$TAG" >> "$GITHUB_OUTPUT"
+
+      - name: Publish GitHub Release with APK
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.tag.outputs.name }}
+          name: FolioScript ${{ steps.tag.outputs.name }}
+          body: |
+            Final release build of **FolioScript** for Android.
+
+            ### How to Install
+            1. Download **`FolioScript-release.apk`** below directly on your Android phone.
+            2. Open the file from your Downloads / Files app and tap **Install** (allow "Install unknown apps" if prompted).
+          files: dist/FolioScript-release.apk
+          draft: false
+          prerelease: false
