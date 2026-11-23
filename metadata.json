@@ -1,0 +1,6 @@
+{
+  "name": "FolioScript",
+  "description": "A Warm Paper & Ink editorial notes and scriptwriting Android app with quick Scene, Action, and Dialogue cues saved privately on device.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
