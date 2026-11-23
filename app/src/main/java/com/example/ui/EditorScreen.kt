@@ -33,7 +33,9 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.outlined.DirectionsRun
 import androidx.compose.material.icons.automirrored.outlined.MenuBook
+import androidx.compose.material.icons.automirrored.outlined.StickyNote2
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material.icons.filled.MoreVert
@@ -41,11 +43,9 @@ import androidx.compose.material.icons.filled.PushPin
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.outlined.ChatBubbleOutline
 import androidx.compose.material.icons.outlined.Description
-import androidx.compose.material.icons.outlined.DirectionsRun
 import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.MovieCreation
 import androidx.compose.material.icons.outlined.PushPin
-import androidx.compose.material.icons.outlined.StickyNote2
 import androidx.compose.material.icons.outlined.Theaters
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -559,7 +559,7 @@ private fun CueActionPill(
         )
         ScriptCueType.ACTION -> CueVisual(
             R.string.cue_action,
-            Icons.Outlined.DirectionsRun,
+            Icons.AutoMirrored.Outlined.DirectionsRun,
             folioColors.actionContainer,
             folioColors.actionOnContainer
         )
@@ -571,7 +571,7 @@ private fun CueActionPill(
         )
         ScriptCueType.NOTE -> CueVisual(
             R.string.cue_note,
-            Icons.Outlined.StickyNote2,
+            Icons.AutoMirrored.Outlined.StickyNote2,
             folioColors.noteContainer,
             folioColors.noteOnContainer
         )
